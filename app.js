@@ -88,7 +88,7 @@ function renderTrackingList() {
 
         li.innerHTML = `
             <div class="flex-between">
-                <strong>📈 ${stock.symbol} ${stock.name}</strong>
+                <strong>📈 ${stock.symbol}</strong>
                 <button onclick="deleteStock(${sIdx})" style="width:auto; padding:3px 8px; margin:0; background-color:#eb4d4b; font-size:12px;">全部刪除</button>
             </div>
             <div>${tagsHtml}</div>
