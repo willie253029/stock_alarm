@@ -1,13 +1,3 @@
-辛苦了！我看過你最新上傳的 HTML 截圖了，這完全不是你的問題，是因為我們前面的討論中，輸入框的 ID 有時用 stock-input，有時用 stock-id，導致 JavaScript 抓不到你畫面上的元件，所以才會產生錯誤。
-
-我已經完全根據你截圖裡的 HTML 代碼（確認了 stock-id、btn-search-stock、search-result、fall-percentage、alert-time 等精確名稱），幫你重新寫好這份一體成型、保證不會抓錯 ID 的 app.js。
-
-此外，我幫所有的按鈕綁定都加了「安全檢查」，就算你的 HTML 不小心漏了某個按鈕，整個網頁也不會當機。
-
-🛠️ 最終整合版：完全對齊你 HTML 的 app.js
-請把 app.js 裡面的內容全部刪除，直接貼上以下這段程式碼並存檔即可：
-
-JavaScript
 // ==================== 🛠️ 關鍵參數設定區 ====================
 const BACKEND_URL = 'https://stock-backend-5wk1.onrender.com'; // ⚠️ Render 後端網址
 const PUBLIC_VAPID_KEY = 'BOqI-NMOQANwPM44bvi_XXkbaTaI4htRS4tooJcDD8MY6u2fJwNnnhl_RvjJNsdlXEuiodPQMzJMlhg961gJrzw'; // ⚠️ VAPID Public Key
@@ -21,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     registerServiceWorker();
     renderTrackingList();
     
-    // 安全綁定按鈕事件 (如果有這個按鈕才綁定，避免報錯)
+    // 安全綁定按鈕事件 (對齊 HTML 中的 ID)
     const btnAddAlert = document.getElementById('btn-add-alert');
     if (btnAddAlert) btnAddAlert.addEventListener('click', addAlertConfig);
     
@@ -47,19 +37,18 @@ async function registerServiceWorker() {
 
 // ==================== 🔍 即時股價查詢功能 ====================
 async function searchStockPrice() {
-    // 對齊截圖：獲取 id="stock-id" 的值
-    const stockIdInput = document.getElementById('stock-id');
+    const stockInputEl = document.getElementById('stock-input');
     const resultDiv = document.getElementById('search-result'); 
     
-    if (!stockIdInput || !stockIdInput.value.trim()) {
+    if (!stockInputEl || !stockInputEl.value.trim()) {
         alert('請輸入股票代號！');
         return;
     }
 
-    const stockId = stockIdInput.value.trim();
+    const stockId = stockInputEl.value.trim();
 
     if (resultDiv) {
-        resultDiv.innerHTML = '<span style="color: #666;">🔍 正在連線雲端爬取即時股價...</span>';
+        resultDiv.innerHTML = '<div style="color: #666; margin: 10px 0;">🔍 正在連線雲端爬取即時股價...</div>';
     }
 
     try {
@@ -73,35 +62,35 @@ async function searchStockPrice() {
         
         if (resultDiv && data) {
             resultDiv.innerHTML = `
-                <div style="background: #f0f7ff; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid #007bff;">
-                    <strong style="font-size: 1.1em; color: #333;">📈 查詢結果：</strong><br>
+                <div style="background: #f0f7ff; padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 5px solid #007bff; text-align: left; font-size: 14px; line-height: 1.6;">
+                    <strong style="font-size: 15px; color: #333;">📈 查詢結果：</strong><br>
                     <span style="color: #555;">股票名稱：</span> <strong>${data.name || '未命名'}</strong> (${stockId})<br>
-                    <span style="color: #555;">目前股價：</span> <strong style="color: #d9534f; font-size: 1.2em;">${data.price || '讀取失敗'}</strong> 元<br>
-                    <span style="color: #555;">歷史高點：</span> <span style="color: #28a745;">${data.high || '無資料'}</span> 元
+                    <span style="color: #555;">目前股價：</span> <strong style="color: #eb4d4b; font-size: 16px;">${data.price || '讀取失敗'}</strong> 元<br>
+                    <span style="color: #555;">歷史高點：</span> <span style="color: #2ecc71; font-weight: bold;">${data.high || '無資料'}</span> 元
                 </div>
             `;
         }
     } catch (error) {
         console.error('查詢失敗:', error);
         if (resultDiv) {
-            resultDiv.innerHTML = `<span style="color: #d9534f;">❌ 查詢失敗：${error.message}，請確認代號是否正確。</span>`;
+            resultDiv.innerHTML = `<div style="color: #eb4d4b; margin: 10px 0; font-size: 14px;">❌ 查詢失敗：${error.message}</div>`;
         }
     }
 }
 
 // ==================== ➕ 新增監控設定 ====================
 async function addAlertConfig() {
-    // 對齊截圖：精準抓取對應 ID 的值
-    const stockId = document.getElementById('stock-id').value.trim();
-    const fallPercentage = document.getElementById('fall-percentage').value.trim();
-    const alertTime = document.getElementById('alert-time').value;
+    // 精準對齊 HTML 的 ID
+    const stockId = document.getElementById('stock-input').value.trim();
+    const period = document.getElementById('period').value;
+    const percent = document.getElementById('percent').value.trim();
 
-    if (!stockId || !fallPercentage || !alertTime) {
-        alert('請填寫完整監控資訊！');
+    if (!stockId || !percent) {
+        alert('請填寫股票代號與回檔跌幅比例！');
         return;
     }
 
-    alert('正在跟後端確認股票名稱並加入清單...');
+    alert('正在向雲端確認股票資訊並同步至監控清單...');
 
     try {
         const response = await fetch(`${BACKEND_URL}/api/stock?id=${stockId}`);
@@ -115,8 +104,8 @@ async function addAlertConfig() {
             id: Date.now().toString(),
             stockId: stockId,
             stockName: stockName,
-            fallPercentage: parseFloat(fallPercentage),
-            alertTime: alertTime
+            period: period,
+            percent: parseFloat(percent)
         };
 
         configList.push(newConfig);
@@ -125,11 +114,14 @@ async function addAlertConfig() {
         renderTrackingList();
         await syncConfigsToBackend(); 
 
-        // 加入成功後清空輸入框
-        document.getElementById('stock-id').value = '';
-        document.getElementById('fall-percentage').value = '';
+        // 成功後清空輸入框
+        document.getElementById('stock-input').value = '';
+        document.getElementById('percent').value = '';
+        if (document.getElementById('search-result')) {
+            document.getElementById('search-result').innerHTML = '';
+        }
         
-        alert(`✅ 成功將 [${stockName}] 加入監控清單！`);
+        alert(`✅ 成功將 [${stockName}] 加入雲端監控清單！`);
     } catch (error) {
         console.error(error);
         alert('加入失敗，請確認網路連線或後端狀態。');
@@ -142,24 +134,29 @@ function renderTrackingList() {
     if (!listContainer) return;
 
     if (configList.length === 0) {
-        listContainer.innerHTML = '<p style="color: #999; text-align: center;">目前沒有監控中的股票</p>';
+        listContainer.innerHTML = '<p style="color: #999; text-align: center; margin-top: 10px;">目前沒有監控中的股票</p>';
         return;
     }
 
-    listContainer.innerHTML = configList.map(config => `
-        <div class="card" style="border: 1px solid #ddd; padding: 12px; margin-bottom: 10px; border-radius: 8px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <strong style="font-size: 1.1em;">${config.stockName} (${config.stockId})</strong>
-                    <div style="font-size: 0.9em; color: #666; margin-top: 4px;">
-                        📉 當低於歷史高點達到：<span style="color: #d9534f; font-weight: bold;">${config.fallPercentage}%</span><br>
-                        ⏰ 檢查時間：<span style="color: #007bff;">${config.alertTime}</span>
+    const periodMapping = { "1": "1個月", "3": "3個月", "6": "6個月", "12": "12個月" };
+
+    listContainer.innerHTML = configList.map(config => {
+        const periodText = periodMapping[config.period] || (config.period + "個月");
+        return `
+            <li>
+                <div class="flex-between">
+                    <div>
+                        <strong style="font-size: 16px; color: #2c3e50;">${config.stockName} (${config.stockId})</strong>
+                        <div style="margin-top: 5px;">
+                            <span class="threshold-tag">📈 觀測範圍：${periodText}內最高點</span>
+                            <span class="threshold-tag" style="color: #eb4d4b; background: #ffeaa7;">📉 目標跌幅：-${config.percent}%</span>
+                        </div>
                     </div>
+                    <button onclick="deleteConfig('${config.id}')" style="width: auto; background: #eb4d4b; color: white; border: none; padding: 6px 12px; border-radius: 4px; margin: 0; font-size: 14px;">刪除</button>
                 </div>
-                <button onclick="deleteConfig('${config.id}')" style="background: #d9534f; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">刪除</button>
-            </div>
-        </div>
-    `).join('');
+            </li>
+        `;
+    }).join('');
 }
 
 // ==================== 🗑️ 刪除監控項目 ====================
