@@ -41,7 +41,7 @@
         <h3>🔍 步驟二：設定回檔買進條件</h3>
         <label>股票代碼：</label>
         <input type="text" id="stock-code" placeholder="例如: 0050">
-        
+        <input type="text" id="stock-input" placeholder="請輸入台股代號或名稱">
         <label>觀測時段 (尋找這段時間的最高點)：</label>
         <select id="period">
             <option value="1">1 個月內</option>
@@ -57,6 +57,8 @@
         <input type="number" id="percent" placeholder="例如: 10 (代表從最高點下跌10%)" min="0" step="0.1">
 
         <button id="btn-add-alert" class="btn-add">加入 / 更新警示監控</button>
+        <button id="btn-search-stock">即時查詢股價</button>
+        <div id="search-result"></div>
     </div>
 
     <div class="card">
