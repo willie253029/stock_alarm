@@ -1,26 +1,38 @@
+辛苦了！我看過你最新上傳的 HTML 截圖了，這完全不是你的問題，是因為我們前面的討論中，輸入框的 ID 有時用 stock-input，有時用 stock-id，導致 JavaScript 抓不到你畫面上的元件，所以才會產生錯誤。
+
+我已經完全根據你截圖裡的 HTML 代碼（確認了 stock-id、btn-search-stock、search-result、fall-percentage、alert-time 等精確名稱），幫你重新寫好這份一體成型、保證不會抓錯 ID 的 app.js。
+
+此外，我幫所有的按鈕綁定都加了「安全檢查」，就算你的 HTML 不小心漏了某個按鈕，整個網頁也不會當機。
+
+🛠️ 最終整合版：完全對齊你 HTML 的 app.js
+請把 app.js 裡面的內容全部刪除，直接貼上以下這段程式碼並存檔即可：
+
+JavaScript
 // ==================== 🛠️ 關鍵參數設定區 ====================
-const BACKEND_URL = 'https://stock-backend-5wk1.onrender.com'; // ⚠️ 請替換成你的 Render 後端網址 (結尾不要加斜線)
-const PUBLIC_VAPID_KEY = 'BOqI-NMOQANwPM44bvi_XXkbaTaI4htRS4tooJcDD8MY6u2fJwNnnhl_RvjJNsdlXEuiodPQMzJMlhg961gJrzw';     // ⚠️ 請替換成你生成的 VAPID Public Key
+const BACKEND_URL = 'https://stock-backend-5wk1.onrender.com'; // ⚠️ Render 後端網址
+const PUBLIC_VAPID_KEY = 'BOqI-NMOQANwPM44bvi_XXkbaTaI4htRS4tooJcDD8MY6u2fJwNnnhl_RvjJNsdlXEuiodPQMzJMlhg961gJrzw'; // ⚠️ VAPID Public Key
 // =========================================================
 
 let configList = JSON.parse(localStorage.getItem('stockAlertConfigs')) || [];
 let currentSubscription = null;
 
+// 當網頁載入完成後執行
 document.addEventListener('DOMContentLoaded', () => {
     registerServiceWorker();
     renderTrackingList();
     
-    // 綁定按鈕事件
-    document.getElementById('btn-add-alert').addEventListener('click', addAlertConfig);
-    document.getElementById('btn-subscribe').addEventListener('click', subscribeToPush);
+    // 安全綁定按鈕事件 (如果有這個按鈕才綁定，避免報錯)
+    const btnAddAlert = document.getElementById('btn-add-alert');
+    if (btnAddAlert) btnAddAlert.addEventListener('click', addAlertConfig);
     
-    // ✨ 新增：綁定「即時查詢股價」按鈕事件
+    const btnSubscribe = document.getElementById('btn-subscribe');
+    if (btnSubscribe) btnSubscribe.addEventListener('click', subscribeToPush);
+    
     const btnSearch = document.getElementById('btn-search-stock');
-    if (btnSearch) {
-        btnSearch.addEventListener('click', searchStockPrice);
-    }
+    if (btnSearch) btnSearch.addEventListener('click', searchStockPrice);
 });
 
+// 註冊 Service Worker
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
@@ -33,23 +45,24 @@ async function registerServiceWorker() {
     }
 }
 
-// ==================== ✨ 新增：即時股價查詢功能 ====================
+// ==================== 🔍 即時股價查詢功能 ====================
 async function searchStockPrice() {
-    const stockId = document.getElementById('stock-id').value.trim();
-    const resultDiv = document.getElementById('search-result'); // 顯示查詢結果的容器
-
-    if (!stockId) {
+    // 對齊截圖：獲取 id="stock-id" 的值
+    const stockIdInput = document.getElementById('stock-id');
+    const resultDiv = document.getElementById('search-result'); 
+    
+    if (!stockIdInput || !stockIdInput.value.trim()) {
         alert('請輸入股票代號！');
         return;
     }
+
+    const stockId = stockIdInput.value.trim();
 
     if (resultDiv) {
         resultDiv.innerHTML = '<span style="color: #666;">🔍 正在連線雲端爬取即時股價...</span>';
     }
 
     try {
-        // 呼叫你的後端爬蟲 API (假設後端有提供 /api/stock/${stockId} 或是透過 query 查詢)
-        // 這裡對齊一般常見的爬蟲格式，傳遞 stockId 給後端
         const response = await fetch(`${BACKEND_URL}/api/stock?id=${stockId}`);
         
         if (!response.ok) {
@@ -57,7 +70,6 @@ async function searchStockPrice() {
         }
 
         const data = await response.json();
-        // 預期後端回傳格式如： { success: true, name: "台積電", price: 900, high: 1000 }
         
         if (resultDiv && data) {
             resultDiv.innerHTML = `
@@ -72,14 +84,14 @@ async function searchStockPrice() {
     } catch (error) {
         console.error('查詢失敗:', error);
         if (resultDiv) {
-            resultDiv.innerHTML = `<span style="color: #d9534f;">❌ 查詢失敗：${error.message}，請確認代號是否正確或後端是否有開機。</span>`;
+            resultDiv.innerHTML = `<span style="color: #d9534f;">❌ 查詢失敗：${error.message}，請確認代號是否正確。</span>`;
         }
     }
 }
-// ===================================================================
 
-// 加入監控配置到 localStorage，並同步後端
+// ==================== ➕ 新增監控設定 ====================
 async function addAlertConfig() {
+    // 對齊截圖：精準抓取對應 ID 的值
     const stockId = document.getElementById('stock-id').value.trim();
     const fallPercentage = document.getElementById('fall-percentage').value.trim();
     const alertTime = document.getElementById('alert-time').value;
@@ -89,11 +101,9 @@ async function addAlertConfig() {
         return;
     }
 
-    // 先顯示載入中
     alert('正在跟後端確認股票名稱並加入清單...');
 
     try {
-        // 嘗試從後端撈取股票名稱（順便驗證代號）
         const response = await fetch(`${BACKEND_URL}/api/stock?id=${stockId}`);
         let stockName = '未命名股票';
         if (response.ok) {
@@ -102,7 +112,7 @@ async function addAlertConfig() {
         }
 
         const newConfig = {
-            id: Date.now().toString(), // 唯一識別碼
+            id: Date.now().toString(),
             stockId: stockId,
             stockName: stockName,
             fallPercentage: parseFloat(fallPercentage),
@@ -113,9 +123,9 @@ async function addAlertConfig() {
         localStorage.setItem('stockAlertConfigs', JSON.stringify(configList));
         
         renderTrackingList();
-        await syncConfigsToBackend(); // 同步給 Render 後端
+        await syncConfigsToBackend(); 
 
-        // 清空輸入框
+        // 加入成功後清空輸入框
         document.getElementById('stock-id').value = '';
         document.getElementById('fall-percentage').value = '';
         
@@ -126,7 +136,7 @@ async function addAlertConfig() {
     }
 }
 
-// 渲染追蹤清單畫面
+// ==================== 📋 渲染追蹤清單畫面 ====================
 function renderTrackingList() {
     const listContainer = document.getElementById('tracking-list');
     if (!listContainer) return;
@@ -152,15 +162,15 @@ function renderTrackingList() {
     `).join('');
 }
 
-// 刪除監控項目
+// ==================== 🗑️ 刪除監控項目 ====================
 async function deleteConfig(id) {
     configList = configList.filter(config => config.id !== id);
     localStorage.setItem('stockAlertConfigs', JSON.stringify(configList));
     renderTrackingList();
-    await syncConfigsToBackend(); // 刪除後也要同步通知後端更新
+    await syncConfigsToBackend(); 
 }
 
-// 啟用推播
+// ==================== 🔔 啟用推播 ====================
 async function subscribeToPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         alert('此瀏覽器或裝置不支援背景推播通知。');
@@ -174,14 +184,14 @@ async function subscribeToPush() {
         });
         
         await syncConfigsToBackend();
-        alert('✅ 雲端背景推播同步成功！即使關閉網頁，Render 也會幫你盯盤。');
+        alert('✅ 雲端背景推播同步成功！');
     } catch (error) {
         console.error(error);
         alert('開啟推播失敗，請確認通知權限。');
     }
 }
 
-// 核心：把手機的訂閱資訊與最新的「多重門檻清單」一起打包送到後端
+// ==================== ☁️ 同步設定到後端 ====================
 async function syncConfigsToBackend() {
     if (!currentSubscription) return; 
 
@@ -200,6 +210,7 @@ async function syncConfigsToBackend() {
     }
 }
 
+// 輔助函數：轉換 VAPID Key 格式
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
