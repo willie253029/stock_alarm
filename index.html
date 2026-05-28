@@ -16,8 +16,10 @@
         button:hover { background-color: #357ABD; }
         button.btn-push { background-color: #2ECC71; }
         button.btn-push:hover { background-color: #27AE60; }
-        button.btn-add { background-color: #E67E22; }
+        button.btn-add { background-color: #E67E22; margin-top: 10px; }
         button.btn-add:hover { background-color: #D35400; }
+        button.btn-search { background-color: #7f8c8d; }
+        button.btn-search:hover { background-color: #718093; }
         ul { list-style: none; padding: 0; }
         li { background: #fff; padding: 12px; margin-bottom: 10px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 5px solid #4A90E2; }
         .flex-between { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
@@ -39,9 +41,12 @@
 
     <div class="card">
         <h3>🔍 步驟二：設定回檔買進條件</h3>
-        <label>股票代碼：</label>
-        <input type="text" id="stock-code" placeholder="例如: 0050">
-        <input type="text" id="stock-input" placeholder="請輸入台股代號或名稱">
+        <label>股票代碼/名稱：</label>
+        <input type="text" id="stock-input" placeholder="請輸入台股代號或名稱 (例如: 2330 或 0050)">
+        
+        <button id="btn-search-stock" class="btn-search">🔍 即時查詢目前股價</button>
+        <div id="search-result"></div>
+
         <label>觀測時段 (尋找這段時間的最高點)：</label>
         <select id="period">
             <option value="1">1 個月內</option>
@@ -56,9 +61,7 @@
         <label>回檔跌幅比例 (%)：</label>
         <input type="number" id="percent" placeholder="例如: 10 (代表從最高點下跌10%)" min="0" step="0.1">
 
-        <button id="btn-add-alert" class="btn-add">加入 / 更新警示監控</button>
-        <button id="btn-search-stock">即時查詢股價</button>
-        <div id="search-result"></div>
+        <button id="btn-add-alert" class="btn-add">➕ 加入 / 更新警示監控</button>
     </div>
 
     <div class="card">
