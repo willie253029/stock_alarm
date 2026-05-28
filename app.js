@@ -1,6 +1,6 @@
 // ==================== 🛠️ 關鍵參數設定區 ====================
 const BACKEND_URL = 'https://stock-backend-5wk1.onrender.com'; // ⚠️ 請替換成你的 Render 後端網址 (結尾不要加斜線)
-const PUBLIC_VAPID_KEY = 'BOqI-NMOQANwPM44bvi_XXkbaTaI4htRS4tooJcDD8MY6u2fJwNnnhl_RvjJNsdlXEuiodPQMzJMlhg961gJrzw'; // ⚠️ 請替換成你生成的 VAPID Public Key
+const PUBLIC_VAPID_KEY = 'BOqI-NMOQANwPM44bvi_XXkbaTaI4htRS4tooJcDD8MY6u2fJwNnnhl_RvjJNsdlXEuiodPQMzJMlhg961gJrzw';     // ⚠️ 請替換成你生成的 VAPID Public Key
 // =========================================================
 
 let configList = JSON.parse(localStorage.getItem('stockAlertConfigs')) || [];
@@ -8,12 +8,19 @@ let currentSubscription = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     registerServiceWorker();
-    renderTrackingList(); // 初始化時渲染追蹤清單
+    renderTrackingList();
+    
+    // 綁定按鈕事件
     document.getElementById('btn-add-alert').addEventListener('click', addAlertConfig);
     document.getElementById('btn-subscribe').addEventListener('click', subscribeToPush);
+    
+    // ✨ 新增：綁定「即時查詢股價」按鈕事件
+    const btnSearch = document.getElementById('btn-search-stock');
+    if (btnSearch) {
+        btnSearch.addEventListener('click', searchStockPrice);
+    }
 });
 
-// 註冊 Service Worker
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
@@ -26,103 +33,137 @@ async function registerServiceWorker() {
     }
 }
 
-// 新增監控設定 (核心改版：自動抓取股票名稱、改為低於歷史高點 % 邏輯、保留時間功能)
+// ==================== ✨ 新增：即時股價查詢功能 ====================
+async function searchStockPrice() {
+    const stockId = document.getElementById('stock-id').value.trim();
+    const resultDiv = document.getElementById('search-result'); // 顯示查詢結果的容器
+
+    if (!stockId) {
+        alert('請輸入股票代號！');
+        return;
+    }
+
+    if (resultDiv) {
+        resultDiv.innerHTML = '<span style="color: #666;">🔍 正在連線雲端爬取即時股價...</span>';
+    }
+
+    try {
+        // 呼叫你的後端爬蟲 API (假設後端有提供 /api/stock/${stockId} 或是透過 query 查詢)
+        // 這裡對齊一般常見的爬蟲格式，傳遞 stockId 給後端
+        const response = await fetch(`${BACKEND_URL}/api/stock?id=${stockId}`);
+        
+        if (!response.ok) {
+            throw new Error('找不到該股票資料或後端伺服器錯誤');
+        }
+
+        const data = await response.json();
+        // 預期後端回傳格式如： { success: true, name: "台積電", price: 900, high: 1000 }
+        
+        if (resultDiv && data) {
+            resultDiv.innerHTML = `
+                <div style="background: #f0f7ff; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid #007bff;">
+                    <strong style="font-size: 1.1em; color: #333;">📈 查詢結果：</strong><br>
+                    <span style="color: #555;">股票名稱：</span> <strong>${data.name || '未命名'}</strong> (${stockId})<br>
+                    <span style="color: #555;">目前股價：</span> <strong style="color: #d9534f; font-size: 1.2em;">${data.price || '讀取失敗'}</strong> 元<br>
+                    <span style="color: #555;">歷史高點：</span> <span style="color: #28a745;">${data.high || '無資料'}</span> 元
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('查詢失敗:', error);
+        if (resultDiv) {
+            resultDiv.innerHTML = `<span style="color: #d9534f;">❌ 查詢失敗：${error.message}，請確認代號是否正確或後端是否有開機。</span>`;
+        }
+    }
+}
+// ===================================================================
+
+// 加入監控配置到 localStorage，並同步後端
 async function addAlertConfig() {
     const stockId = document.getElementById('stock-id').value.trim();
     const fallPercentage = document.getElementById('fall-percentage').value.trim();
     const alertTime = document.getElementById('alert-time').value;
 
-    // 基礎欄位驗證
     if (!stockId || !fallPercentage || !alertTime) {
-        alert('請完整填寫所有欄位（股票代號、成數/百分比、提醒時間）！');
+        alert('請填寫完整監控資訊！');
         return;
     }
 
-    try {
-        // ✨【關鍵步驟】向後端 API 查詢該股票的名稱與歷史高點資料
-        // 備註：後端 server.js 需配合提供此 API 端點
-        const response = await fetch(`${BACKEND_URL}/api/stock-info?stockId=${stockId}`);
-        if (!response.ok) throw new Error('後端回傳錯誤或找不到該股票');
-        
-        const stockData = await response.json(); 
-        // 預期後端會回傳物件，例如：{ stockId: "2330", stockName: "台積電", ath: 1000 }
-        const stockName = stockData.stockName || '未命名股票';
+    // 先顯示載入中
+    alert('正在跟後端確認股票名稱並加入清單...');
 
-        // 檢查清單中是否已經重複加入
-        if (configList.some(item => item.stockId === stockId)) {
-            alert('此股票已在監控清單中！');
-            return;
+    try {
+        // 嘗試從後端撈取股票名稱（順便驗證代號）
+        const response = await fetch(`${BACKEND_URL}/api/stock?id=${stockId}`);
+        let stockName = '未命名股票';
+        if (response.ok) {
+            const data = await response.json();
+            stockName = data.name || stockName;
         }
 
-        // 建立符合新邏輯的設定物件 (內含 stockName)
         const newConfig = {
-            id: Date.now().toString(),
+            id: Date.now().toString(), // 唯一識別碼
             stockId: stockId,
-            stockName: stockName,           // ✨ 成功存入股票名稱
-            fallPercentage: parseFloat(fallPercentage), // 使用者自訂低於高點的百分比 (例如輸入 10 代表低於 10%)
-            alertTime: alertTime           // 使用者自訂的提醒檢查時間 (例如 "13:30")
+            stockName: stockName,
+            fallPercentage: parseFloat(fallPercentage),
+            alertTime: alertTime
         };
 
         configList.push(newConfig);
         localStorage.setItem('stockAlertConfigs', JSON.stringify(configList));
         
-        renderTrackingList();         // 更新 App 畫面顯示
-        await syncConfigsToBackend(); // 將新清單同步到 Render 雲端後端
-        
-        // 清空 UI 輸入框
-        document.getElementById('stock-code').value = '';
+        renderTrackingList();
+        await syncConfigsToBackend(); // 同步給 Render 後端
+
+        // 清空輸入框
+        document.getElementById('stock-id').value = '';
         document.getElementById('fall-percentage').value = '';
+        
+        alert(`✅ 成功將 [${stockName}] 加入監控清單！`);
     } catch (error) {
-        console.error('獲取股票資訊失敗:', error);
-        alert('無法取得股票名稱。請確認輸入的代號正確，且 Render 後端已啟動！');
+        console.error(error);
+        alert('加入失敗，請確認網路連線或後端狀態。');
     }
 }
 
-// 渲染前端追蹤清單畫面 (完美顯示股票名稱)
+// 渲染追蹤清單畫面
 function renderTrackingList() {
     const listContainer = document.getElementById('tracking-list');
     if (!listContainer) return;
-    
-    listContainer.innerHTML = '';
 
     if (configList.length === 0) {
-        listContainer.innerHTML = '<p style="color: #888; text-align: center; margin-top: 20px;">目前沒有監控中的股票。</p>';
+        listContainer.innerHTML = '<p style="color: #999; text-align: center;">目前沒有監控中的股票</p>';
         return;
     }
 
-    configList.forEach(config => {
-        const item = document.createElement('div');
-        item.className = 'alert-item';
-        // 簡單加上外觀樣式讓它像個 App 清單卡片
-        item.style = 'border: 1px solid #e0e0e0; padding: 12px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);';
-        
-        // ✨【畫面顯示】在這裡將股票代號與名稱（config.stockName）一同呈現在介面上
-        item.innerHTML = `
-            <div>
-                <strong style="font-size: 1.1em; color: #333;">📊 ${config.stockId} ${config.stockName}</strong><br>
-                <span style="font-size: 0.9em; color: #666; display: inline-block; margin-top: 4px;">
-                    📉 條件：比歷史最高點低 <strong>${config.fallPercentage}%</strong> 時通知<br>
-                    ⏰ 時間：每日 <strong>${config.alertTime}</strong> 執行檢查
-                </span>
+    listContainer.innerHTML = configList.map(config => `
+        <div class="card" style="border: 1px solid #ddd; padding: 12px; margin-bottom: 10px; border-radius: 8px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong style="font-size: 1.1em;">${config.stockName} (${config.stockId})</strong>
+                    <div style="font-size: 0.9em; color: #666; margin-top: 4px;">
+                        📉 當低於歷史高點達到：<span style="color: #d9534f; font-weight: bold;">${config.fallPercentage}%</span><br>
+                        ⏰ 檢查時間：<span style="color: #007bff;">${config.alertTime}</span>
+                    </div>
+                </div>
+                <button onclick="deleteConfig('${config.id}')" style="background: #d9534f; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">刪除</button>
             </div>
-            <button onclick="deleteConfig('${config.id}')" style="background-color: #ff4d4d; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;">刪除</button>
-        `;
-        listContainer.appendChild(item);
-    });
+        </div>
+    `).join('');
 }
 
-// 刪除監控設定
+// 刪除監控項目
 async function deleteConfig(id) {
-    configList = configList.filter(item => item.id !== id);
+    configList = configList.filter(config => config.id !== id);
     localStorage.setItem('stockAlertConfigs', JSON.stringify(configList));
     renderTrackingList();
-    await syncConfigsToBackend();
+    await syncConfigsToBackend(); // 刪除後也要同步通知後端更新
 }
 
-// 啟用推播與權限向手機申請
+// 啟用推播
 async function subscribeToPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        alert('此裝置或瀏覽器不支援雲端推播功能。');
+        alert('此瀏覽器或裝置不支援背景推播通知。');
         return;
     }
     try {
@@ -133,16 +174,16 @@ async function subscribeToPush() {
         });
         
         await syncConfigsToBackend();
-        alert('✅ 雲端背景推播同步成功！Render 後端將在指定時間為您盯盤。');
+        alert('✅ 雲端背景推播同步成功！即使關閉網頁，Render 也會幫你盯盤。');
     } catch (error) {
-        console.error('訂閱推播失敗:', error);
-        alert('開啟推播失敗，請檢查手機的通知權限設定。');
+        console.error(error);
+        alert('開啟推播失敗，請確認通知權限。');
     }
 }
 
-// 把最新的監控清單（含股票名稱）打包同步給後端
+// 核心：把手機的訂閱資訊與最新的「多重門檻清單」一起打包送到後端
 async function syncConfigsToBackend() {
-    if (!currentSubscription) return; // 若使用者未點擊啟用推播，先不上傳
+    if (!currentSubscription) return; 
 
     try {
         await fetch(`${BACKEND_URL}/api/subscribe`, {
@@ -158,9 +199,6 @@ async function syncConfigsToBackend() {
         console.error('同步後端失敗:', error);
     }
 }
-
-// 全域刪除函數绑定給 window 物件，確保 HTML 的 onclick 可以順利觸發
-window.deleteConfig = deleteConfig;
 
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
