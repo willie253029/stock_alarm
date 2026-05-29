@@ -94,6 +94,7 @@ async function addAlertConfig() {
     //新增
     let stockName = '未知股票';
     try {
+        console.log("準備請求的完整網址:", `${BACKEND_URL}/api/stock/${stockCode}`); //新增
         const response = await fetch(`${BACKEND_URL}/api/stock/${stockCode}`);
         if (response.ok) {
             const data = await response.json();
