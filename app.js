@@ -90,6 +90,18 @@ async function addAlertConfig() {
         alert('請輸入正確的回檔百分比門檻（必須大於 0）！');
         return;
     }
+
+    //新增
+    let stockName = '未知股票';
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/stock/${code}`);
+        if (response.ok) {
+            const data = await response.json();
+            stockName = data.name || '未知股票'; // 成功拿到後端 server 讀取的 name
+        }
+    } catch (error) {
+        console.error('前端獲取股票名稱失敗:', error);
+    }
     
     // 檢查是否有完全重複的條件
     const isDuplicate = configList.some(item => item.stockCode === stockCode && item.period === period && item.percent === percent);
@@ -102,6 +114,7 @@ async function addAlertConfig() {
     const newConfig = {
         id: Date.now().toString(),
         stockCode,
+        name,
         period,
         percent
     };
@@ -140,6 +153,7 @@ function renderTrackingList() {
             <thead>
                 <tr>
                     <th>股票代碼</th>
+                    <th>股票名稱</th>
                     <th>觀測時段</th>
                     <th>觸發降幅</th>
                     <th>管理</th>
