@@ -7,32 +7,35 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4A90E2">
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f7fa; color: #333; }
-        .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #4A90E2; font-size: 24px; }
-        .card { border: 1px solid #e1e4e8; padding: 15px; border-radius: 8px; margin-bottom: 15px; background: #fafbfc; }
-        input, select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background-color: #4A90E2; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; margin-bottom: 10px; }
-        button:hover { background-color: #357ABD; }
-        button.btn-push { background-color: #2ECC71; }
-        button.btn-push:hover { background-color: #27AE60; }
-        button.btn-add { background-color: #E67E22; margin-top: 10px; }
-        button.btn-add:hover { background-color: #D35400; }
-        button.btn-search { background-color: #7f8c8d; }
-        button.btn-search:hover { background-color: #718093; }
-        ul { list-style: none; padding: 0; }
-        li { background: #fff; padding: 12px; margin-bottom: 10px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 5px solid #4A90E2; }
-        .flex-between { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-        .price-up { color: #eb4d4b; font-weight: bold; }
-        .price-down { color: #2ecc71; font-weight: bold; }
-        .threshold-tag { background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 12px; display: inline-block; margin: 2px; }
-        .info-box { padding: 10px; background: #e8f4fd; border-radius: 6px; margin-bottom: 10px; color: #2980b9; font-size: 14px; font-weight: bold; text-align: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f4f8; color: #333; }
+        .container { max-width: 550px; margin: 0 auto; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        h1 { text-align: center; color: #2c3e50; font-size: 24px; margin-bottom: 25px; }
+        .card { border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; margin-bottom: 20px; background: #fdfdfd; box-shadow: inset 0 1px 3px rgba(0,0,0,0.01); }
+        h3 { margin-top: 0; color: #34495e; font-size: 16px; border-left: 4px solid #3498db; padding-left: 8px; margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 14px; color: #7f8c8d; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; box-sizing: border-box; transition: all 0.2s; }
+        input:focus, select:focus { border-color: #3498db; outline: none; box-shadow: 0 0 0 3px rgba(52,152,219,0.2); }
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        .btn-push { background-color: #4A90E2; color: white; }
+        .btn-push:hover { background-color: #357ABD; }
+        .btn-search { background-color: #95a5a6; color: white; margin-bottom: 15px; }
+        .btn-search:hover { background-color: #7f8c8d; }
+        .btn-add { background-color: #2ecc71; color: white; }
+        .btn-add:hover { background-color: #27ae60; }
+        .info-box { padding: 12px; background: #e8f4fd; border-radius: 8px; margin-bottom: 15px; color: #2980b9; font-size: 14px; border-left: 4px solid #2980b9; line-height: 1.5; }
+        .error-box { padding: 12px; background: #fdeded; border-radius: 8px; margin-bottom: 15px; color: #c0392b; font-size: 14px; border-left: 4px solid #c0392b; }
+        .loading { font-size: 14px; color: #7f8c8d; font-style: italic; text-align: center; margin-bottom: 15px; }
+        .tracking-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        .tracking-table th, .tracking-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .tracking-table th { background-color: #f8fafc; color: #64748b; font-weight: 600; }
+        .btn-delete { background-color: #e74c3c; color: white; padding: 6px 12px; font-size: 12px; border-radius: 4px; width: auto; display: inline-block; }
+        .btn-delete:hover { background-color: #c0392b; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>📈 台股抄底回檔追蹤</h1>
+    <h1>📈 台股抄底回檔追蹤系統</h1>
     
     <div class="card">
         <h3>🔔 步驟一：開啟通知權限</h3>
@@ -41,32 +44,30 @@
 
     <div class="card">
         <h3>🔍 步驟二：設定回檔買進條件</h3>
-        <label>股票代碼/名稱：</label>
-        <input type="text" id="stock-input" placeholder="請輸入台股代號或名稱 (例如: 2330 或 0050)">
+        
+        <label for="stock-code">股票代碼：</label>
+        <input type="text" id="stock-code" placeholder="請輸入台股代號 (例如: 2330 或 0050)">
         
         <button id="btn-search-stock" class="btn-search">🔍 即時查詢目前股價</button>
         <div id="search-result"></div>
 
-        <label>觀測時段 (尋找這段時間的最高點)：</label>
+        <label for="period">觀測時段 (尋找此期間的歷史最高點)：</label>
         <select id="period">
             <option value="1">1 個月內</option>
             <option value="3" selected>3 個月內</option>
             <option value="6">6 個月內</option>
-            <option value="12">12 個月內</option>
         </select>
 
-        <label>觸發邏輯：</label>
-        <div class="info-box">📉 當目前股價低於「歷史最高點」達到指定跌幅時提醒我</div>
-
-        <label>回檔跌幅比例 (%)：</label>
-        <input type="number" id="percent" placeholder="例如: 10 (代表從最高點下跌10%)" min="0" step="0.1">
-
-        <button id="btn-add-alert" class="btn-add">➕ 加入 / 更新警示監控</button>
+        <label for="percent">回檔跌幅比例 (%)：</label>
+        <input type="number" id="percent" placeholder="例如：跌破最高點 8% 時提醒" min="0.1" step="0.1">
+        
+        <button id="btn-add-alert" class="btn-add">➕ 加入雲端監控清單</button>
     </div>
 
     <div class="card">
-        <h3>📋 目前雲端監控清單</h3>
-        <ul id="tracking-list"></ul>
+        <h3>📊 目前雲端監控中的清單</h3>
+        <div id="tracking-list">
+            </div>
     </div>
 </div>
 
