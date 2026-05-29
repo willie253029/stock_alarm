@@ -1,13 +1,12 @@
-JavaScript
 // ==================== 🛠️ 關鍵參數設定區 ====================
-const BACKEND_URL = 'https://stock-backend-5wk1.onrender.com'; // ⚠️ Render 後端網址 (注意結尾不要有斜線)
-const PUBLIC_VAPID_KEY = 'BOqI-NMOQANwPM44bvi_XXkbaTaI4htRS4tooJcDD8MY6u2fJwNnnhl_RvjJNsdlXEuiodPQMzJMlhg961gJrzw'; 
+const BACKEND_URL = 'https://stock-backend-5wk1.onrender.com'; // ⚠️ 請確保替換成您的 Render 後端網址 (結尾不要加斜線)
+const PUBLIC_VAPID_KEY = 'BOqI-NMOQANwPM44bvi_XXkbaTaI4htRS4tooJcDD8MY6u2fJwNnnhl_RvjJNsdlXEuiodPQMzJMlhg961gJrzw'; // ⚠️ 請替換成您生成的 VAPID Public Key
 // =========================================================
 
 let configList = JSON.parse(localStorage.getItem('stockAlertConfigs')) || [];
 let currentSubscription = null;
 
-// 當網頁載入完成後執行
+// 當網頁載入完成後初始化
 document.addEventListener('DOMContentLoaded', () => {
     registerServiceWorker();
     renderTrackingList();
@@ -22,167 +21,164 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnSearch) btnSearch.addEventListener('click', searchStockPrice);
 });
 
-// 註冊 Service Worker
+// 1. 註冊 PWA Service Worker
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
             const reg = await navigator.serviceWorker.register('sw.js');
             console.log('Service Worker 註冊成功');
+            // 檢查是否已有現存的雲端推播訂閱
             currentSubscription = await reg.pushManager.getSubscription();
+            updateSubscribeButtonUI();
         } catch (error) {
             console.error('Service Worker 註冊失敗:', error);
         }
     }
 }
 
-// ==================== 🔍 即時股價查詢功能 ====================
+// 2. 即時查詢目前股價 (與後端結合)
 async function searchStockPrice() {
-    const stockInput = document.getElementById('stock-input');
+    const stockInput = document.getElementById('stock-code');
+    const periodSelect = document.getElementById('period');
     const resultDiv = document.getElementById('search-result');
-    if (!stockInput || !resultDiv) return;
+    if (!stockInput || !resultDiv || !periodSelect) return;
+    
+    const code = stockInput.value.trim().toUpperCase();
+    const period = periodSelect.value;
+    if (!code) {
+        alert('請輸入股票代碼！');
+        return;
+    }
+    
+    resultDiv.innerHTML = '<div class="loading">正在連線伺服器抓取即時數據...</div>';
+    
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/stock/${code}?period=${period}`);
+        if (!response.ok) throw new Error('伺服器回傳錯誤或找不到該股票代號');
+        const data = await response.json();
+        
+        resultDiv.innerHTML = `
+            <div class="info-box">
+                <strong>📊 查詢結果 [${data.symbol}]</strong><br>
+                最新成交價：<span style="color: #2980b9; font-size: 18px; font-weight: bold;">$${data.currentPrice.toFixed(2)}</span><br>
+                近 ${data.period} 個月歷史最高點：<span style="color: #27ae60; font-weight: bold;">$${data.historicalHigh.toFixed(2)}</span>
+            </div>
+        `;
+    } catch (error) {
+        console.error(error);
+        resultDiv.innerHTML = `<div class="error-box">❌ 查詢失敗：${error.message}</div>`;
+    }
+}
 
-    const stockCode = stockInput.value.trim();
+// 3. 新增回檔策略監控條件
+async function addAlertConfig() {
+    const stockCodeInput = document.getElementById('stock-code');
+    const periodSelect = document.getElementById('period');
+    const percentInput = document.getElementById('percent');
+    
+    if (!stockCodeInput || !periodSelect || !percentInput) return;
+    
+    const stockCode = stockCodeInput.value.trim().toUpperCase();
+    const period = periodSelect.value;
+    const percent = parseFloat(percentInput.value);
+    
     if (!stockCode) {
         alert('請輸入股票代碼！');
         return;
     }
-
-    resultDiv.innerHTML = '🔍 即時股價查詢中...';
-
-    try {
-        // 💡 確保與您瀏覽器測試成功的後端路由完全一致：/api/price/股票代碼
-        const response = await fetch(`${BACKEND_URL}/api/price/${stockCode}`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('前端成功收到即時股價資料:', data);
-        
-        // 將資料渲染到畫面中 (對應 index.html 的結果區塊)
-        if (data && data.price) {
-            resultDiv.innerHTML = `
-                <div class="info-box" style="background: #e8f4fd; padding: 10px; border-radius: 6px; color: #2980b9; margin-top: 10px; font-weight: bold; text-align: center;">
-                    📈 ${data.name || stockCode} (${stockCode})<br>
-                    💰 目前即時股價：<span style="color: #e74c3c; font-size: 18px;">${data.price}</span> 元
-                </div>
-            `;
-        } else {
-            resultDiv.innerHTML = `<span style="color:orange;">⚠️ 找不到該股票的股價資料</span>`;
-        }
-    } catch (error) {
-        console.error('前端 Fetch 發生錯誤:', error);
-        resultDiv.innerHTML = `<span style="color:red;">❌ 查詢失敗：${error.message}</span>`;
-    }
-}
-
-// ==================== ➕ 新增監控設定 ====================
-async function addAlertConfig() {
-    const stockId = document.getElementById('stock-input').value.trim();
-    const period = document.getElementById('period').value;
-    const percent = document.getElementById('percent').value.trim();
-
-    if (!stockId || !percent) {
-        alert('請填寫股票代號與回檔跌幅比例！');
+    if (isNaN(percent) || percent <= 0) {
+        alert('請輸入正確的回檔百分比門檻（必須大於 0）！');
         return;
     }
-
-    alert('正在向雲端確認股票資訊並同步至監控清單...');
-
-    try {
-        const fetchUrl = `${BACKEND_URL}/api/price/:symbol`;
-        console.log("🔗 [新增] 前端正在呼叫的網址是:", fetchUrl);
-
-        const response = await fetch(fetchUrl);
-        const responseText = await response.text();
-        
-        let stockName = '未命名股票';
-        
-        if (response.ok) {
-            try {
-                const data = JSON.parse(responseText);
-                stockName = data.name || data.stockName || data.title || stockName;
-            } catch (e) {
-                console.error("JSON 解析失敗", e);
-            }
-        } else {
-            console.warn(`後端回傳錯誤狀態碼: ${response.status}`, responseText);
-        }
-
-        const newConfig = {
-            id: Date.now().toString(),
-            stockId: stockId,
-            stockName: stockName,
-            period: period,
-            percent: parseFloat(percent)
-        };
-
-        configList.push(newConfig);
-        localStorage.setItem('stockAlertConfigs', JSON.stringify(configList));
-        
-        renderTrackingList();
-        await syncConfigsToBackend(); 
-
-        document.getElementById('stock-input').value = '';
-        document.getElementById('percent').value = '';
-        if (document.getElementById('search-result')) {
-            document.getElementById('search-result').innerHTML = '';
-        }
-        
-        alert(`✅ 成功將 [${stockName}] 加入雲端監控清單！`);
-    } catch (error) {
-        console.error('加入失敗:', error);
-        alert('加入失敗，請確認網路連線或後端狀態。');
-    }
-}
-
-// ==================== 📋 渲染追蹤清單畫面 ====================
-function renderTrackingList() {
-    const listContainer = document.getElementById('tracking-list');
-    if (!listContainer) return;
-
-    if (configList.length === 0) {
-        listContainer.innerHTML = '<p style="color: #999; text-align: center; margin-top: 10px;">目前沒有監控中的股票</p>';
+    
+    // 檢查是否有完全重複的條件
+    const isDuplicate = configList.some(item => item.stockCode === stockCode && item.period === period && item.percent === percent);
+    if (isDuplicate) {
+        alert('相同的抄底監控條件已經存在清單中囉！');
         return;
     }
-
-    const periodMapping = { "1": "1個月", "3": "3個月", "6": "6個月", "12": "12個月" };
-
-    listContainer.innerHTML = configList.map(config => {
-        const periodText = periodMapping[config.period] || (config.period + "個月");
-        return `
-            <li>
-                <div class="flex-between">
-                    <div>
-                        <strong style="font-size: 16px; color: #2c3e50;">${config.stockName} (${config.stockId})</strong>
-                        <div style="margin-top: 5px;">
-                            <span class="threshold-tag">📈 觀測範圍：${periodText}內最高點</span>
-                            <span class="threshold-tag" style="color: #eb4d4b; background: #ffeaa7;">📉 目標跌幅：-${config.percent}%</span>
-                        </div>
-                    </div>
-                    <button onclick="deleteConfig('${config.id}')" style="width: auto; background: #eb4d4b; color: white; border: none; padding: 6px 12px; border-radius: 4px; margin: 0; font-size: 14px;">刪除</button>
-                </div>
-            </li>
-        `;
-    }).join('');
+    
+    // 封裝標準結構
+    const newConfig = {
+        id: Date.now().toString(),
+        stockCode,
+        period,
+        percent
+    };
+    
+    configList.push(newConfig);
+    localStorage.setItem('stockAlertConfigs', JSON.stringify(configList));
+    
+    renderTrackingList();
+    await syncConfigsToBackend();
+    
+    // 清空輸入框
+    stockCodeInput.value = '';
+    alert(`✅ 成功加入監控：${stockCode} 當低於近 ${period} 個月高點 ${percent}% 時通知。`);
 }
 
-// ==================== 🗑️ 刪除監控項目 ====================
-async function deleteConfig(id) {
-    configList = configList.filter(config => config.id !== id);
+// 4. 刪除監控條件 (綁定至全域 window 物件以防作用域問題)
+window.removeAlertConfig = async function(id) {
+    configList = configList.filter(item => item.id !== id);
     localStorage.setItem('stockAlertConfigs', JSON.stringify(configList));
     renderTrackingList();
-    await syncConfigsToBackend(); 
-}
+    await syncConfigsToBackend();
+};
 
-// ==================== 🔔 啟用推播 ====================
-async function subscribeToPush() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        alert('此瀏覽器或裝置不支援背景推播通知。');
+// 5. 渲染監控清單表格 UI
+function renderTrackingList() {
+    const container = document.getElementById('tracking-list');
+    if (!container) return;
+    
+    if (configList.length === 0) {
+        container.innerHTML = '<p style="color: #888; text-align: center; margin: 15px 0;">目前沒有設定任何回檔條件，趕快新增一個吧！</p>';
         return;
     }
+    
+    let html = `
+        <table class="tracking-table">
+            <thead>
+                <tr>
+                    <th>股票代碼</th>
+                    <th>觀測時段</th>
+                    <th>觸發降幅</th>
+                    <th>管理</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    configList.forEach(config => {
+        html += `
+            <tr>
+                <td><strong>${config.stockCode}</strong></td>
+                <td>近 ${config.period} 個月內</td>
+                <td>低於高點 <span style="color: #e74c3c; font-weight: bold;">${config.percent}%</span></td>
+                <td>
+                    <button class="btn-delete" onclick="removeAlertConfig('${config.id}')">刪除</button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+}
+
+// 6. 啟用雲端背景推播與權限要求
+async function subscribeToPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('抱歉，您的手機或瀏覽器不支援 Web Push 雲端推播功能。');
+        return;
+    }
+    
     try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            alert('通知權限被拒絕。請至手機或瀏覽器設定中手動開啟通知權限，否則伺服器無法發送提醒簡訊。');
+            return;
+        }
+        
         const registration = await navigator.serviceWorker.ready;
         currentSubscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
@@ -190,33 +186,47 @@ async function subscribeToPush() {
         });
         
         await syncConfigsToBackend();
-        alert('✅ 雲端背景推播同步成功！');
+        updateSubscribeButtonUI();
+        alert('✅ 雲端背景推播同步成功！即使您關閉網頁、將手機滑掉，伺服器也會在背景幫您盯盤。');
     } catch (error) {
-        console.error(error);
-        alert('開啟推播失敗，請確認通知權限。');
+        console.error('開啟雲端推播失敗:', error);
+        alert('開啟推播失敗，請確認伺服器連線與通知權限。');
     }
 }
 
-// ==================== ☁️ 同步設定到後端 ====================
+// 7. 更新啟用推播按鈕的 UI 狀態
+function updateSubscribeButtonUI() {
+    const btn = document.getElementById('btn-subscribe');
+    if (!btn) return;
+    if (currentSubscription) {
+        btn.innerText = '🟢 雲端背景盯盤推播已啟用';
+        btn.style.backgroundColor = '#2ecc71';
+    } else {
+        btn.innerText = '啟用雲端背景推播功能';
+        btn.style.backgroundColor = '#4A90E2';
+    }
+}
+
+// 8. 將手機訂閱代碼與最新的「多重回檔條件清單」一起同步送到 Render 後端
 async function syncConfigsToBackend() {
-    if (!currentSubscription) return; 
+    if (!currentSubscription) return; // 使用者還沒點啟用推播按鈕，先不跟後端同步
 
     try {
         await fetch(`${BACKEND_URL}/api/subscribe`, {
             method: 'POST',
             body: JSON.stringify({
                 subscription: currentSubscription,
-                configs: configList 
+                configs: configList // 把整張自訂回檔跌幅表傳過去
             }),
             headers: { 'Content-Type': 'application/json' }
         });
-        console.log('雲端監控條件同步成功');
+        console.log('雲端監控條件成功同步至後端');
     } catch (error) {
         console.error('同步後端失敗:', error);
     }
 }
 
-// 輔助函數：轉換 VAPID Key 格式
+// 輔助函數：將 Base64 的 VAPID Key 轉換為 Uint8Array
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
