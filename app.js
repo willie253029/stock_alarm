@@ -94,7 +94,7 @@ async function addAlertConfig() {
     //新增
     let stockName = '未知股票';
     try {
-        const response = await fetch(`${BACKEND_URL}/api/stock/${code}`);
+        const response = await fetch(`${BACKEND_URL}/api/stock/${stockCode}`);
         if (response.ok) {
             const data = await response.json();
             stockName = data.name || '未知股票'; // 成功拿到後端 server 讀取的 name
