@@ -109,7 +109,7 @@ async function addAlertConfig() {
     alert('正在向雲端確認股票資訊並同步至監控清單...');
 
     try {
-        const fetchUrl = `${BACKEND_URL}/api/stock?id=${stockId}`;
+        const fetchUrl = `${BACKEND_URL}/api/price/${stockId}`;
         console.log("🔗 [新增] 前端正在呼叫的網址是:", fetchUrl);
 
         const response = await fetch(fetchUrl);
