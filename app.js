@@ -61,7 +61,7 @@ async function searchStockPrice() {
             <div class="info-box">
                 <strong>📊 查詢結果 [${data.symbol}]</strong><br>
                 最新成交價：<span style="color: #2980b9; font-size: 18px; font-weight: bold;">$${data.currentPrice.toFixed(2)}</span><br>
-                近 ${data.period} 個月歷史最高點：<span style="color: #27ae60; font-weight: bold;">$${data.historicalHigh.toFixed(2)}</span>
+                
             </div>
         `;
     } catch (error) {
