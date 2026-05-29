@@ -1,6 +1,7 @@
+JavaScript
 // ==================== 🛠️ 關鍵參數設定區 ====================
-const BACKEND_URL = 'https://stock-backend-5wk1.onrender.com'; // ⚠️ Render 後端網址
-const PUBLIC_VAPID_KEY = 'BOqI-NMOQANwPM44bvi_XXkbaTaI4htRS4tooJcDD8MY6u2fJwNnnhl_RvjJNsdlXEuiodPQMzJMlhg961gJrzw'; // ⚠️ VAPID Public Key
+const BACKEND_URL = 'https://stock-backend-5wk1.onrender.com'; // ⚠️ Render 後端網址 (注意結尾不要有斜線)
+const PUBLIC_VAPID_KEY = 'BOqI-NMOQANwPM44bvi_XXkbaTaI4htRS4tooJcDD8MY6u2fJwNnnhl_RvjJNsdlXEuiodPQMzJMlhg961gJrzw'; 
 // =========================================================
 
 let configList = JSON.parse(localStorage.getItem('stockAlertConfigs')) || [];
@@ -11,7 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
     registerServiceWorker();
     renderTrackingList();
     
-    // 安全綁定按鈕事件 (對齊 HTML 中的 ID)
     const btnAddAlert = document.getElementById('btn-add-alert');
     if (btnAddAlert) btnAddAlert.addEventListener('click', addAlertConfig);
     
@@ -52,35 +52,51 @@ async function searchStockPrice() {
     }
 
     try {
-        const response = await fetch(`${BACKEND_URL}/api/stock?id=${stockId}`);
+        const fetchUrl = `${BACKEND_URL}/api/stock?id=${stockId}`;
+        console.log("🔗 [查詢] 前端正在呼叫的網址是:", fetchUrl);
+
+        const response = await fetch(fetchUrl);
+        const responseText = await response.text(); // 先轉純文字，避免 json() 解析錯誤當機
         
+        console.log("📦 [查詢] 後端回傳的原始資料:", responseText);
+
         if (!response.ok) {
-            throw new Error('找不到該股票資料或後端伺服器錯誤');
+            throw new Error(`伺服器錯誤 (代碼: ${response.status})，內容: ${responseText.substring(0, 50)}...`);
         }
 
-        const data = await response.json();
+        // 嘗試解析 JSON
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            throw new Error('後端回傳的不是有效的 JSON 格式');
+        }
         
-        if (resultDiv && data) {
+        // 增加相容性：支援不同的後端 JSON 欄位命名
+        const stockName = data.name || data.stockName || data.title || '未命名';
+        const stockPrice = data.price || data.currentPrice || data.close || '讀取失敗';
+        const stockHigh = data.high || data.highest || '無資料';
+
+        if (resultDiv) {
             resultDiv.innerHTML = `
                 <div style="background: #f0f7ff; padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 5px solid #007bff; text-align: left; font-size: 14px; line-height: 1.6;">
                     <strong style="font-size: 15px; color: #333;">📈 查詢結果：</strong><br>
-                    <span style="color: #555;">股票名稱：</span> <strong>${data.name || '未命名'}</strong> (${stockId})<br>
-                    <span style="color: #555;">目前股價：</span> <strong style="color: #eb4d4b; font-size: 16px;">${data.price || '讀取失敗'}</strong> 元<br>
-                    <span style="color: #555;">歷史高點：</span> <span style="color: #2ecc71; font-weight: bold;">${data.high || '無資料'}</span> 元
+                    <span style="color: #555;">股票名稱：</span> <strong>${stockName}</strong> (${stockId})<br>
+                    <span style="color: #555;">目前股價：</span> <strong style="color: #eb4d4b; font-size: 16px;">${stockPrice}</strong> 元<br>
+                    <span style="color: #555;">歷史高點：</span> <span style="color: #2ecc71; font-weight: bold;">${stockHigh}</span> 元
                 </div>
             `;
         }
     } catch (error) {
         console.error('查詢失敗:', error);
         if (resultDiv) {
-            resultDiv.innerHTML = `<div style="color: #eb4d4b; margin: 10px 0; font-size: 14px;">❌ 查詢失敗：${error.message}</div>`;
+            resultDiv.innerHTML = `<div style="color: #eb4d4b; margin: 10px 0; font-size: 14px;">❌ 查詢失敗：${error.message}<br><small>(請按 F12 查看 Console 細節)</small></div>`;
         }
     }
 }
 
 // ==================== ➕ 新增監控設定 ====================
 async function addAlertConfig() {
-    // 精準對齊 HTML 的 ID
     const stockId = document.getElementById('stock-input').value.trim();
     const period = document.getElementById('period').value;
     const percent = document.getElementById('percent').value.trim();
@@ -93,11 +109,23 @@ async function addAlertConfig() {
     alert('正在向雲端確認股票資訊並同步至監控清單...');
 
     try {
-        const response = await fetch(`${BACKEND_URL}/api/stock?id=${stockId}`);
+        const fetchUrl = `${BACKEND_URL}/api/stock?id=${stockId}`;
+        console.log("🔗 [新增] 前端正在呼叫的網址是:", fetchUrl);
+
+        const response = await fetch(fetchUrl);
+        const responseText = await response.text();
+        
         let stockName = '未命名股票';
+        
         if (response.ok) {
-            const data = await response.json();
-            stockName = data.name || stockName;
+            try {
+                const data = JSON.parse(responseText);
+                stockName = data.name || data.stockName || data.title || stockName;
+            } catch (e) {
+                console.error("JSON 解析失敗", e);
+            }
+        } else {
+            console.warn(`後端回傳錯誤狀態碼: ${response.status}`, responseText);
         }
 
         const newConfig = {
@@ -114,7 +142,6 @@ async function addAlertConfig() {
         renderTrackingList();
         await syncConfigsToBackend(); 
 
-        // 成功後清空輸入框
         document.getElementById('stock-input').value = '';
         document.getElementById('percent').value = '';
         if (document.getElementById('search-result')) {
@@ -123,7 +150,7 @@ async function addAlertConfig() {
         
         alert(`✅ 成功將 [${stockName}] 加入雲端監控清單！`);
     } catch (error) {
-        console.error(error);
+        console.error('加入失敗:', error);
         alert('加入失敗，請確認網路連線或後端狀態。');
     }
 }
