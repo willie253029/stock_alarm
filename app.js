@@ -92,13 +92,13 @@ async function addAlertConfig() {
     }
 
     //新增
-    let stockName = '未知股票';
+    let name = '未知股票';
     try {
         console.log("準備請求的完整網址:", `${BACKEND_URL}/api/stock/${stockCode}`); //新增
         const response = await fetch(`${BACKEND_URL}/api/stock/${stockCode}`);
         if (response.ok) {
             const data = await response.json();
-            stockName = data.name || '未知股票'; // 成功拿到後端 server 讀取的 name
+            name = data.name || '未知股票'; // 成功拿到後端 server 讀取的 name
         }
     } catch (error) {
         console.error('前端獲取股票名稱失敗:', error);
@@ -115,7 +115,7 @@ async function addAlertConfig() {
     const newConfig = {
         id: Date.now().toString(),
         stockCode,
-        stockName,
+        name,
         period,
         percent
     };
