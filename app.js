@@ -114,7 +114,7 @@ async function addAlertConfig() {
     const newConfig = {
         id: Date.now().toString(),
         stockCode,
-        name,
+        stockName,
         period,
         percent
     };
