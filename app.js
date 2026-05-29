@@ -37,61 +37,43 @@ async function registerServiceWorker() {
 
 // ==================== 🔍 即時股價查詢功能 ====================
 async function searchStockPrice() {
-    const stockInputEl = document.getElementById('stock-input');
-    const resultDiv = document.getElementById('search-result'); 
-    
-    if (!stockInputEl || !stockInputEl.value.trim()) {
-        alert('請輸入股票代號！');
+    const stockInput = document.getElementById('stock-input');
+    const resultDiv = document.getElementById('search-result');
+    if (!stockInput || !resultDiv) return;
+
+    const stockCode = stockInput.value.trim();
+    if (!stockCode) {
+        alert('請輸入股票代碼！');
         return;
     }
 
-    const stockId = stockInputEl.value.trim();
-
-    if (resultDiv) {
-        resultDiv.innerHTML = '<div style="color: #666; margin: 10px 0;">🔍 正在連線雲端爬取即時股價...</div>';
-    }
+    resultDiv.innerHTML = '🔍 即時股價查詢中...';
 
     try {
-        const fetchUrl = `${BACKEND_URL}/api/price/:symbol`;
-        console.log("🔗 [查詢] 前端正在呼叫的網址是:", fetchUrl);
-
-        const response = await fetch(fetchUrl);
-        const responseText = await response.text(); // 先轉純文字，避免 json() 解析錯誤當機
+        // 💡 確保與您瀏覽器測試成功的後端路由完全一致：/api/price/股票代碼
+        const response = await fetch(`${BACKEND_URL}/api/price/${stockCode}`);
         
-        console.log("📦 [查詢] 後端回傳的原始資料:", responseText);
-
         if (!response.ok) {
-            throw new Error(`伺服器錯誤 (代碼: ${response.status})，內容: ${responseText.substring(0, 50)}...`);
-        }
-
-        // 嘗試解析 JSON
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (e) {
-            throw new Error('後端回傳的不是有效的 JSON 格式');
+            throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
         }
         
-        // 增加相容性：支援不同的後端 JSON 欄位命名
-        const stockName = data.name || data.stockName || data.title || '未命名';
-        const stockPrice = data.price || data.currentPrice || data.close || '讀取失敗';
-        const stockHigh = data.high || data.highest || '無資料';
-
-        if (resultDiv) {
+        const data = await response.json();
+        console.log('前端成功收到即時股價資料:', data);
+        
+        // 將資料渲染到畫面中 (對應 index.html 的結果區塊)
+        if (data && data.price) {
             resultDiv.innerHTML = `
-                <div style="background: #f0f7ff; padding: 12px; border-radius: 8px; margin: 10px 0; border-left: 5px solid #007bff; text-align: left; font-size: 14px; line-height: 1.6;">
-                    <strong style="font-size: 15px; color: #333;">📈 查詢結果：</strong><br>
-                    <span style="color: #555;">股票名稱：</span> <strong>${stockName}</strong> (${stockId})<br>
-                    <span style="color: #555;">目前股價：</span> <strong style="color: #eb4d4b; font-size: 16px;">${stockPrice}</strong> 元<br>
-                    <span style="color: #555;">歷史高點：</span> <span style="color: #2ecc71; font-weight: bold;">${stockHigh}</span> 元
+                <div class="info-box" style="background: #e8f4fd; padding: 10px; border-radius: 6px; color: #2980b9; margin-top: 10px; font-weight: bold; text-align: center;">
+                    📈 ${data.name || stockCode} (${stockCode})<br>
+                    💰 目前即時股價：<span style="color: #e74c3c; font-size: 18px;">${data.price}</span> 元
                 </div>
             `;
+        } else {
+            resultDiv.innerHTML = `<span style="color:orange;">⚠️ 找不到該股票的股價資料</span>`;
         }
     } catch (error) {
-        console.error('查詢失敗:', error);
-        if (resultDiv) {
-            resultDiv.innerHTML = `<div style="color: #eb4d4b; margin: 10px 0; font-size: 14px;">❌ 查詢失敗：${error.message}<br><small>(請按 F12 查看 Console 細節)</small></div>`;
-        }
+        console.error('前端 Fetch 發生錯誤:', error);
+        resultDiv.innerHTML = `<span style="color:red;">❌ 查詢失敗：${error.message}</span>`;
     }
 }
 
