@@ -148,6 +148,8 @@ function renderTrackingList() {
         container.innerHTML = '<p style="color: #888; text-align: center; margin: 15px 0;">目前沒有設定任何回檔條件，趕快新增一個吧！</p>';
         return;
     }
+
+    console.log("目前的監控清單資料:", configList); //新增檢查點
     
     let html = `
         <table class="tracking-table">
