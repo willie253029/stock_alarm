@@ -169,6 +169,7 @@ function renderTrackingList() {
         html += `
             <tr>
                 <td><strong>${config.stockCode}</strong></td>
+                <td>${config.name}</td>
                 <td>近 ${config.period} 個月內</td>
                 <td>低於高點 <span style="color: #e74c3c; font-weight: bold;">${config.percent}%</span></td>
                 <td>
